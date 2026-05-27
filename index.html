@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Engineering Cohorts Heatmap - NI</title>
+    <title>Engineering Cohorts Interactive Map & Heatmap - NI</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
@@ -16,7 +16,7 @@
         }
         #map {
             width: 100%;
-            height: 70vh;
+            height: 75vh;
             z-index: 1;
         }
         .admin-panel {
@@ -79,6 +79,29 @@
             font-size: 0.9rem;
             color: #495057;
         }
+        /* Custom styles for clean, readable map popups */
+        .popup-box {
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .popup-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 4px;
+            color: #333;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 7px;
+            font-size: 11px;
+            font-weight: bold;
+            color: white;
+            border-radius: 3px;
+            margin-top: 5px;
+            text-transform: uppercase;
+        }
+        .badge-prev { background-color: #007bff; }
+        .badge-up { background-color: #dc3545; }
     </style>
 </head>
 <body>
@@ -89,12 +112,12 @@
 
     <div class="admin-panel" id="adminPanel" style="display: none;">
         <h3>Admin Location Generator</h3>
-        <p>Fill out the fields or use the Postcode Lookup to generate the clean code snippet for your map data array.</p>
+        <p>Fill out fields or look up a postcode to get the perfect format for copying directly into the dataset array above.</p>
         
         <div class="flex-row">
             <div class="form-group flex-child">
                 <label for="compName">Company Name</label>
-                <input type="text" id="compName" placeholder="e.g. Terex">
+                <input type="text" id="compName" placeholder="e.g. McCloskey">
             </div>
             <div class="form-group flex-child">
                 <label for="postcode">Postcode</label>
@@ -124,7 +147,7 @@
         </div>
 
         <button type="button" onclick="generateJSONSnippet()">Generate Entry Code</button>
-        <textarea id="output" readonly placeholder="Your generated code snippet will appear here... Copy and paste this directly into the dataset script tags above."></textarea>
+        <textarea id="output" readonly placeholder="Your generated code snippet will appear here..."></textarea>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -132,94 +155,147 @@
 
     <script>
         // ==========================================
-        // 1. DATASET: The Consolidated "One-File" Data Array
+        // 1. DATASET
         // ==========================================
         const businessData = [
-            { company: "Edge", postcode: "BT71 4DT", lat: 54.5123, lng: -6.6854, previous: true, upcoming: false },
-            { company: "SA Kennedy", postcode: "BT71 4DU", lat: 54.5140, lng: -6.6820, previous: true, upcoming: false },
-            { company: "MCD Engineering", postcode: "BT70 3JL", lat: 54.5362, lng: -6.8245, previous: true, upcoming: false },
-            { company: "Nugent", postcode: "BT70 2PP", lat: 54.4988, lng: -6.8410, previous: true, upcoming: false },
+            { company: "Edge", postcode: "BT71 4DT", lat: 54.5374, lng: -6.7281, previous: true, upcoming: false },
+            { company: "SA Kennedy", postcode: "BT71 4DU", lat: 54.5360, lng: -6.7210, previous: true, upcoming: false },
+            { company: "MCD Engineering", postcode: "BT70 3JL", lat: 54.6127, lng: -6.8539, previous: true, upcoming: false },
+            { company: "Nugent", postcode: "BT70 2PP", lat: 54.5912, lng: -6.8480, previous: true, upcoming: false },
             { company: "Creagh", postcode: "BT41 4SL", lat: 54.7785, lng: -6.4912, previous: true, upcoming: false },
-            { company: "NHL", postcode: "BT71 4QT", lat: 54.5095, lng: -6.6910, previous: true, upcoming: false },
-            { company: "Portafil", postcode: "BT70 1RP", lat: 54.5042, lng: -6.7415, previous: true, upcoming: false },
+            { company: "NHL", postcode: "BT71 4QT", lat: 54.5420, lng: -6.7450, previous: true, upcoming: false },
+            { company: "Portafil", postcode: "BT70 1RP", lat: 54.5020, lng: -6.7490, previous: true, upcoming: false },
             { company: "QMAC", postcode: "BT75 5NN", lat: 54.4371, lng: -7.0392, previous: true, upcoming: false },
-            { company: "SFM", postcode: "BT60 3TU", lat: 54.3122, lng: -6.6114, previous: true, upcoming: false },
-            { company: "Specdrum", postcode: "BT71 4DT", lat: 54.5123, lng: -6.6854, previous: true, upcoming: false },
+            { company: "SFM", postcode: "BT60 3TU", lat: 54.3410, lng: -6.6520, previous: true, upcoming: false },
+            { company: "Specdrum", postcode: "BT71 4DT", lat: 54.5374, lng: -6.7281, previous: true, upcoming: false },
             { company: "STEMfab", postcode: "BT42 1LQ", lat: 54.8524, lng: -6.2514, previous: true, upcoming: false },
-            { company: "Terex", postcode: "BT71 4DT", lat: 54.5123, lng: -6.6854, previous: false, upcoming: true },
-            { company: "EDGE", postcode: "BT71 4DT", lat: 54.5123, lng: -6.6854, previous: false, upcoming: true },
-            { company: "Muldoon", postcode: "BT71 6HX", lat: 54.5248, lng: -6.6541, previous: false, upcoming: true },
-            { company: "TerraMac", postcode: "BT71 4QF", lat: 54.5050, lng: -6.6995, previous: false, upcoming: true },
-            { company: "Kane Group", postcode: "BT32 3QD", lat: 54.3482, lng: -6.2541, previous: false, upcoming: true },
-            { company: "Combi Lift NI", postcode: "BT60 4JJ", lat: 54.2984, lng: -6.6710, previous: false, upcoming: true },
-            { company: "McGahan", postcode: "BT71 7PU", lat: 54.5684, lng: -6.6120, previous: false, upcoming: true },
+            
+            { company: "Terex", postcode: "BT71 4DT", lat: 54.5374, lng: -6.7281, previous: false, upcoming: true },
+            { company: "EDGE", postcode: "BT71 4DT", lat: 54.5374, lng: -6.7281, previous: false, upcoming: true },
+            { company: "Muldoon", postcode: "BT71 6HX", lat: 54.5510, lng: -6.6710, previous: false, upcoming: true },
+            { company: "TerraMac", postcode: "BT71 4QF", lat: 54.5320, lng: -6.7350, previous: false, upcoming: true },
+            { company: "Kane Group", postcode: "BT32 3QD", lat: 54.3512, lng: -6.2921, previous: false, upcoming: true },
+            { company: "Combi Lift NI", postcode: "BT60 4JJ", lat: 54.3110, lng: -6.6380, previous: false, upcoming: true },
+            { company: "McGahan", postcode: "BT71 7PU", lat: 54.5710, lng: -6.6230, previous: false, upcoming: true },
             { company: "Bruce Eng", postcode: "BT80 8UH", lat: 54.6492, lng: -6.6748, previous: false, upcoming: true }
         ];
 
         // ==========================================
         // 2. INITIALIZE MAP
         // ==========================================
-        // Center map roughly around Mid-Ulster region coordinates
-        const map = L.map('map').setView([54.55, -6.65], 9);
+        const map = L.map('map').setView([54.58, -6.65], 9);
 
-        // Clean, minimal map background perfect for heat visualisations
-        const baseLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: 'abcd',
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
             maxZoom: 20
         }).addTo(map);
 
         // ==========================================
-        // 3. GENERATE HEATMAP ARRAYS
+        // 3. DEFINE MARKER ICONS (Color Matched to Heat Layers)
+        // ==========================================
+        const blueIcon = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        const redIcon = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        // ==========================================
+        // 4. GENERATE HEAT AND MARKER LAYERS
         // ==========================================
         const prevHeatPoints = [];
         const upcomingHeatPoints = [];
+        
+        const previousMarkersLayer = L.layerGroup();
+        const upcomingMarkersLayer = L.layerGroup();
 
         businessData.forEach(function(item) {
-            // Heat point format: [lat, lng, intensity]
+            // Apply slight random offset (jitter) to coordinates if pins perfectly overlap
+            // This prevents markers from completely hiding behind each other
+            const sameLocationCount = businessData.filter(d => d.lat === item.lat && d.lng === item.lng).length;
+            let finalLat = item.lat;
+            let finalLng = item.lng;
+            
+            if (sameLocationCount > 1) {
+                finalLat += (Math.random() - 0.5) * 0.0015;
+                finalLng += (Math.random() - 0.5) * 0.0015;
+            }
+
             if (item.previous) {
                 prevHeatPoints.push([item.lat, item.lng, 0.8]);
+                
+                const popupContent = `
+                    <div class="popup-box">
+                        <div class="popup-title">${item.company}</div>
+                        <div><b>Postcode:</b> ${item.postcode}</div>
+                        <span class="badge badge-prev">Previous Cohort</span>
+                    </div>
+                `;
+                L.marker([finalLat, finalLng], {icon: blueIcon}).bindPopup(popupContent).addTo(previousMarkersLayer);
             }
+            
             if (item.upcoming) {
-                upcomingHeatPoints.push([item.lat, item.lng, 0.9]);
+                upcomingHeatPoints.push([item.lat, item.lng, 0.8]);
+                
+                const popupContent = `
+                    <div class="popup-box">
+                        <div class="popup-title">${item.company}</div>
+                        <div><b>Postcode:</b> ${item.postcode}</div>
+                        <span class="badge badge-up">Upcoming Cohort</span>
+                    </div>
+                `;
+                L.marker([finalLat, finalLng], {icon: redIcon}).bindPopup(popupContent).addTo(upcomingMarkersLayer);
             }
         });
 
-        // Previous Cohorts Heat Layer (Blue gradient)
+        // Initialize Heat Layers
         const previousHeatLayer = L.heatLayer(prevHeatPoints, {
-            radius: 25,
-            blur: 15,
-            maxZoom: 13,
+            radius: 25, blur: 15, maxZoom: 13,
             gradient: { 0.4: 'blue', 0.65: 'cyan', 1.0: 'teal' }
-        }).addTo(map);
+        });
 
-        // Upcoming Cohorts Heat Layer (Warm Red/Orange gradient)
         const upcomingHeatLayer = L.heatLayer(upcomingHeatPoints, {
-            radius: 25,
-            blur: 15,
-            maxZoom: 13,
+            radius: 25, blur: 15, maxZoom: 13,
             gradient: { 0.4: 'yellow', 0.65: 'orange', 1.0: 'red' }
-        }).addTo(map);
+        });
+
+        // Add all layers to map by default
+        previousHeatLayer.addTo(map);
+        upcomingHeatLayer.addTo(map);
+        previousMarkersLayer.addTo(map);
+        upcomingMarkersLayer.addTo(map);
 
         // ==========================================
-        // 4. MAP INTERFACE CONTROLS
+        // 5. LAYER MANAGEMENT PANEL
         // ==========================================
         const overlays = {
             "Previous Cohorts (Blue Heat)": previousHeatLayer,
-            "Upcoming Cohorts (Red Heat)": upcomingHeatLayer
+            "Previous Cohorts (Pins)": previousMarkersLayer,
+            "Upcoming Cohorts (Red Heat)": upcomingHeatLayer,
+            "Upcoming Cohorts (Pins)": upcomingMarkersLayer
         };
 
         L.control.layers(null, overlays, { collapsed: false }).addTo(map);
 
         // ==========================================
-        // 5. ADMIN GENERATOR LOGIC
+        // 6. ADMIN GENERATOR LOGIC
         // ==========================================
         function toggleAdminView() {
             const panel = document.getElementById('adminPanel');
             panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
         }
 
-        // Live Geocoding via OpenStreetMap Nominatim API
         function lookupPostcode() {
             const pc = document.getElementById('postcode').value.trim();
             if (!pc) {
@@ -227,7 +303,6 @@
                 return;
             }
 
-            // Target search specifically to Northern Ireland for accuracy
             const url = `https://nominatim.openstreetmap.org/search?format=json&postalcode=${encodeURIComponent(pc)}&country=United Kingdom`;
 
             fetch(url)
@@ -242,7 +317,7 @@
                 })
                 .catch(err => {
                     console.error("Geocoding error:", err);
-                    alert("Error looking up postcode. Try entering values manually.");
+                    alert("Error looking up postcode.");
                 });
         }
 
@@ -254,7 +329,7 @@
             const type = document.getElementById('cohortType').value;
 
             if (isNaN(lat) || isNaN(lng)) {
-                alert("Please ensure valid Latitude and Longitude values are set before generating code.");
+                alert("Please ensure valid Latitude and Longitude values are set.");
                 return;
             }
 
