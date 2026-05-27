@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engineering Cohorts Heatmap - NI</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        #map {
+            width: 100%;
+            height: 70vh;
+            z-index: 1;
+        }
+        .admin-panel {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 2px solid #dee2e6;
+            box-sizing: border-box;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #output {
+            width: 100%;
+            height: 120px;
+            margin-top: 15px;
+            font-family: monospace;
+            background-color: #212529;
+            color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .flex-row {
+            display: flex;
+            gap: 15px;
+        }
+        .flex-child {
+            flex: 1;
+        }
+        .toggle-admin {
+            text-align: center;
+            padding: 10px;
+            background: #e9ecef;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <div class="toggle-admin" onclick="toggleAdminView()">🛠️ Toggle Admin Data Generator</div>
+
+    <div class="admin-panel" id="adminPanel" style="display: none;">
+        <h3>Admin Location Generator</h3>
+        <p>Fill out the fields or use the Postcode Lookup to generate the clean code snippet for your map data array.</p>
+        
+        <div class="flex-row">
+            <div class="form-group flex-child">
+                <label for="compName">Company Name</label>
+                <input type="text" id="compName" placeholder="e.g. Terex">
+            </div>
+            <div class="form-group flex-child">
+                <label for="postcode">Postcode</label>
+                <div style="display: flex; gap: 5px;">
+                    <input type="text" id="postcode" placeholder="e.g. BT71 4DT">
+                    <button type="button" onclick="lookupPostcode()">Lookup</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-row">
+            <div class="form-group flex-child">
+                <label for="lat">Latitude</label>
+                <input type="text" id="lat" placeholder="Auto-fills or enter manually">
+            </div>
+            <div class="form-group flex-child">
+                <label for="lng">Longitude</label>
+                <input type="text" id="lng" placeholder="Auto-fills or enter manually">
+            </div>
+            <div class="form-group flex-child">
+                <label for="cohortType">Cohort Status</label>
+                <select id="cohortType">
+                    <option value="previous">Previous Cohort</option>
+                    <option value="upcoming">Upcoming Cohort</option>
+                </select>
+            </div>
+        </div>
+
+        <button type="button" onclick="generateJSONSnippet()">Generate Entry Code</button>
+        <textarea id="output" readonly placeholder="Your generated code snippet will appear here... Copy and paste this directly into the dataset script tags above."></textarea>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://leaflet.github.io/Leaflet.heat/dist/leaflet-heat.js"></script>
+
+    <script>
+        // ==========================================
+        // 1. DATASET: The Consolidated "One-File" Data Array
+        // ==========================================
+        const businessData = [
+            { company: "Edge", postcode: "BT71 4DT", lat: 54.5123, lng: -6.6854, previous: true, upcoming: false },
+            { company: "SA Kennedy", postcode: "BT71 4DU", lat: 54.5140, lng: -6.6820, previous: true, upcoming: false },
+            { company: "MCD Engineering", postcode: "BT70 3JL", lat: 54.5362, lng: -6.8245, previous: true, upcoming: false },
+            { company: "Nugent", postcode: "BT70 2PP", lat: 54.4988, lng: -6.8410, previous: true, upcoming: false },
+            { company: "Creagh", postcode: "BT41 4SL", lat: 54.7785, lng: -6.4912, previous: true, upcoming: false },
+            { company: "NHL", postcode: "BT71 4QT", lat: 54.5095, lng: -6.6910, previous: true, upcoming: false },
+            { company: "Portafil", postcode: "BT70 1RP", lat: 54.5042, lng: -6.7415, previous: true, upcoming: false },
+            { company: "QMAC", postcode: "BT75 5NN", lat: 54.4371, lng: -7.0392, previous: true, upcoming: false },
+            { company: "SFM", postcode: "BT60 3TU", lat: 54.3122, lng: -6.6114, previous: true, upcoming: false },
+            { company: "Specdrum", postcode: "BT71 4DT", lat: 54.5123, lng: -6.6854, previous: true, upcoming: false },
+            { company: "STEMfab", postcode: "BT42 1LQ", lat: 54.8524, lng: -6.2514, previous: true, upcoming: false },
+            { company: "Terex", postcode: "BT71 4DT", lat: 54.5123, lng: -6.6854, previous: false, upcoming: true },
+            { company: "EDGE", postcode: "BT71 4DT", lat: 54.5123, lng: -6.6854, previous: false, upcoming: true },
+            { company: "Muldoon", postcode: "BT71 6HX", lat: 54.5248, lng: -6.6541, previous: false, upcoming: true },
+            { company: "TerraMac", postcode: "BT71 4QF", lat: 54.5050, lng: -6.6995, previous: false, upcoming: true },
+            { company: "Kane Group", postcode: "BT32 3QD", lat: 54.3482, lng: -6.2541, previous: false, upcoming: true },
+            { company: "Combi Lift NI", postcode: "BT60 4JJ", lat: 54.2984, lng: -6.6710, previous: false, upcoming: true },
+            { company: "McGahan", postcode: "BT71 7PU", lat: 54.5684, lng: -6.6120, previous: false, upcoming: true },
+            { company: "Bruce Eng", postcode: "BT80 8UH", lat: 54.6492, lng: -6.6748, previous: false, upcoming: true }
+        ];
+
+        // ==========================================
+        // 2. INITIALIZE MAP
+        // ==========================================
+        // Center map roughly around Mid-Ulster region coordinates
+        const map = L.map('map').setView([54.55, -6.65], 9);
+
+        // Clean, minimal map background perfect for heat visualisations
+        const baseLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        // ==========================================
+        // 3. GENERATE HEATMAP ARRAYS
+        // ==========================================
+        const prevHeatPoints = [];
+        const upcomingHeatPoints = [];
+
+        businessData.forEach(function(item) {
+            // Heat point format: [lat, lng, intensity]
+            if (item.previous) {
+                prevHeatPoints.push([item.lat, item.lng, 0.8]);
+            }
+            if (item.upcoming) {
+                upcomingHeatPoints.push([item.lat, item.lng, 0.9]);
+            }
+        });
+
+        // Previous Cohorts Heat Layer (Blue gradient)
+        const previousHeatLayer = L.heatLayer(prevHeatPoints, {
+            radius: 25,
+            blur: 15,
+            maxZoom: 13,
+            gradient: { 0.4: 'blue', 0.65: 'cyan', 1.0: 'teal' }
+        }).addTo(map);
+
+        // Upcoming Cohorts Heat Layer (Warm Red/Orange gradient)
+        const upcomingHeatLayer = L.heatLayer(upcomingHeatPoints, {
+            radius: 25,
+            blur: 15,
+            maxZoom: 13,
+            gradient: { 0.4: 'yellow', 0.65: 'orange', 1.0: 'red' }
+        }).addTo(map);
+
+        // ==========================================
+        // 4. MAP INTERFACE CONTROLS
+        // ==========================================
+        const overlays = {
+            "Previous Cohorts (Blue Heat)": previousHeatLayer,
+            "Upcoming Cohorts (Red Heat)": upcomingHeatLayer
+        };
+
+        L.control.layers(null, overlays, { collapsed: false }).addTo(map);
+
+        // ==========================================
+        // 5. ADMIN GENERATOR LOGIC
+        // ==========================================
+        function toggleAdminView() {
+            const panel = document.getElementById('adminPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Live Geocoding via OpenStreetMap Nominatim API
+        function lookupPostcode() {
+            const pc = document.getElementById('postcode').value.trim();
+            if (!pc) {
+                alert("Please enter a postcode first.");
+                return;
+            }
+
+            // Target search specifically to Northern Ireland for accuracy
+            const url = `https://nominatim.openstreetmap.org/search?format=json&postalcode=${encodeURIComponent(pc)}&country=United Kingdom`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.length > 0) {
+                        document.getElementById('lat').value = parseFloat(data[0].lat).toFixed(4);
+                        document.getElementById('lng').value = parseFloat(data[0].lon).toFixed(4);
+                    } else {
+                        alert("Postcode not found automatically. Please provide manually.");
+                    }
+                })
+                .catch(err => {
+                    console.error("Geocoding error:", err);
+                    alert("Error looking up postcode. Try entering values manually.");
+                });
+        }
+
+        function generateJSONSnippet() {
+            const name = document.getElementById('compName').value.trim() || "Unknown Corp";
+            const pc = document.getElementById('postcode').value.trim().toUpperCase() || "N/A";
+            const lat = parseFloat(document.getElementById('lat').value);
+            const lng = parseFloat(document.getElementById('lng').value);
+            const type = document.getElementById('cohortType').value;
+
+            if (isNaN(lat) || isNaN(lng)) {
+                alert("Please ensure valid Latitude and Longitude values are set before generating code.");
+                return;
+            }
+
+            const isPrev = (type === 'previous');
+            const isUp = (type === 'upcoming');
+
+            const snippet = `,
+    { company: "${name}", postcode: "${pc}", lat: ${lat}, lng: ${lng}, previous: ${isPrev}, upcoming: ${isUp} }`;
+
+            document.getElementById('output').value = snippet;
+        }
+    </script>
+</body>
+</html>
